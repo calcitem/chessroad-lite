@@ -77,7 +77,7 @@ namespace {
 
   // Add a small random component to draw evaluations to avoid 3-fold blindness
   Value value_draw(const Thread* thisThread) {
-    return VALUE_DRAW - 1 + Value(thisThread->nodes & 0x2);
+    return VALUE_DRAW;
   }
 
   template <NodeType nodeType>
@@ -285,10 +285,9 @@ void Thread::search() {
 
   int searchAgainCounter = 0;
 
-  // Iterative deepening loop until requested to stop or the target depth is reached
-  while (   ++rootDepth < MAX_PLY
-         && !Threads.stop
-         && !(Limits.depth && mainThread && rootDepth > Limits.depth))
+// Fixed depth
+int targetDepth = 13; // 根据需要设置搜索深度
+while (++rootDepth <= targetDepth)
   {
       // Age out PV variability metric
       if (mainThread)
@@ -420,6 +419,7 @@ void Thread::search() {
           th->bestMoveChanges = 0;
       }
 
+#if 0
       // Do we have time for the next iteration? Can we stop searching now?
       if (    Limits.use_time_management()
           && !Threads.stop
@@ -460,6 +460,7 @@ void Thread::search() {
           else
                    Threads.increaseDepth = true;
       }
+#endif
 
       mainThread->iterValue[iterIdx] = bestValue;
       iterIdx = (iterIdx + 1) & 3;
@@ -880,7 +881,8 @@ moves_loop: // When in check, search starts here
           moveCountPruning = moveCount >= futility_move_count(improving, depth);
 
           // Reduced depth of the next LMR search
-          int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, delta, thisThread->rootDelta), 0);
+          //int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, delta, thisThread->rootDelta), 0);
+          int lmrDepth = newDepth;
 
           if (   capture
               || givesCheck)
@@ -1159,13 +1161,6 @@ moves_loop: // When in check, search starts here
               if (PvNode && value < beta) // Update alpha! Always alpha < beta
               {
                   alpha = value;
-
-                  // Reduce other moves if we have found at least one score improvement
-                  if (   depth > 2
-                      && depth < 7
-                      && beta  <  VALUE_KNOWN_WIN
-                      && alpha > -VALUE_KNOWN_WIN)
-                     depth -= 1;
 
                   assert(depth > 0);
               }
